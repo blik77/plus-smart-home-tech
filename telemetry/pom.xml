@@ -17,4 +17,12 @@
         <module>collector</module>
     </modules>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>1.11.3</version>
+        </dependency>
+    </dependencies>
+
 </project>
