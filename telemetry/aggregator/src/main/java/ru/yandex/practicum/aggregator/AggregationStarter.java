@@ -11,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.aggregator.config.KafkaProperties;
 import ru.yandex.practicum.aggregator.service.SnapshotService;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
@@ -26,23 +27,17 @@ public class AggregationStarter {
 
     private final KafkaConsumer<String, SensorEventAvro> consumer;
     private final KafkaProducer<String, SensorsSnapshotAvro> producer;
-
+    private final KafkaProperties kafkaProperties;
     private final SnapshotService snapshotService;
-
-    @Value("${aggregator.kafka.topics.input}")
-    private String inputTopic;
-
-    @Value("${aggregator.kafka.topics.output}")
-    private String outputTopic;
 
     private volatile Thread mainLoopThread;
 
     public void start() {
         mainLoopThread = Thread.currentThread();
-        log.info("Запуск Aggregator, подписка на топик: {}", inputTopic);
+        log.info("Запуск Aggregator, подписка на топик: {}", kafkaProperties.getTopics().getInput());
 
         try {
-            consumer.subscribe(Collections.singletonList(inputTopic));
+            consumer.subscribe(Collections.singletonList(kafkaProperties.getTopics().getInput()));
 
             while (true) {
                 ConsumerRecords<String, SensorEventAvro> records = consumer.poll(Duration.ofMillis(100));
@@ -71,7 +66,7 @@ public class AggregationStarter {
 
         if (updatedSnapshot.isPresent()) {
             SensorsSnapshotAvro snapshot = updatedSnapshot.get();
-            producer.send(new ProducerRecord<>(outputTopic, snapshot.getHubId(), snapshot),
+            producer.send(new ProducerRecord<>(kafkaProperties.getTopics().getOutput(), snapshot.getHubId(), snapshot),
                 (metadata, exception) -> {
                     if (exception != null) {
                         log.error("Ошибка отправки снапшота в Kafka: {}", exception.getMessage());
