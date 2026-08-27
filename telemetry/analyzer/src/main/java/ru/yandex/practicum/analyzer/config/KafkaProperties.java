@@ -25,5 +25,7 @@ public class KafkaProperties {
     public static class Consumer {
         private String snapshotsGroup;
         private String hubEventsGroup;
+        private String enableAutoCommit;
+        private String autoOffsetReset;
     }
 }

@@ -23,6 +23,8 @@ analyzer:
     consumer:
       snapshots-group: analyzer-snapshots
       hub-events-group: analyzer-hub-events
+      enable-auto-commit: false
+      auto-offset-reset: earliest
 
 grpc:
   client:
