@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: aggregator
+
+aggregator:
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: aggregator-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+    topics:
+      input: telemetry.sensors.v1
+      output: telemetry.snapshots.v1
+
+logging:
+  level:
+    ru.yandex.practicum.aggregator: DEBUG
