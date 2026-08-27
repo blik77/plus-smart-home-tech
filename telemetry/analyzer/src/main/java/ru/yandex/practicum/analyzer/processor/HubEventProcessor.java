@@ -31,6 +31,10 @@ public class HubEventProcessor extends BaseKafkaProcessor<String, HubEventAvro> 
         for (ConsumerRecord<String, HubEventAvro> record : records) {
             handle(record.value());
         }
+
+        if (!records.isEmpty()) {
+            commitOffsets();
+        }
     }
 
     private void handle(HubEventAvro event) {
