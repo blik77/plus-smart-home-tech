@@ -19,6 +19,7 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Component
@@ -41,6 +42,9 @@ public class AggregationStarter {
 
             while (true) {
                 ConsumerRecords<String, SensorEventAvro> records = consumer.poll(Duration.ofMillis(100));
+                if (records.isEmpty()) {
+                    continue;
+                }
 
                 for (ConsumerRecord<String, SensorEventAvro> record : records) {
                     processRecord(record);
@@ -66,15 +70,24 @@ public class AggregationStarter {
 
         if (updatedSnapshot.isPresent()) {
             SensorsSnapshotAvro snapshot = updatedSnapshot.get();
-            producer.send(new ProducerRecord<>(kafkaProperties.getTopics().getOutput(), snapshot.getHubId(), snapshot),
-                (metadata, exception) -> {
-                    if (exception != null) {
-                        log.error("Ошибка отправки снапшота в Kafka: {}", exception.getMessage());
-                    } else {
-                        log.debug("Снапшот отправлен: topic={}, partition={}, offset={}",
-                            metadata.topic(), metadata.partition(), metadata.offset());
-                    }
-                });
+
+            try {
+                producer.send(new ProducerRecord<>(kafkaProperties.getTopics().getOutput(), snapshot.getHubId(), snapshot),
+                        (metadata, exception) -> {
+                            if (exception != null) {
+                                log.error("Ошибка отправки снапшота в Kafka: {}", exception.getMessage());
+                            } else {
+                                log.debug("Снапшот отправлен: topic={}, partition={}, offset={}",
+                                        metadata.topic(), metadata.partition(), metadata.offset());
+                            }
+                        });
+            } catch (InterruptedException exception) {
+                throw new IllegalStateException("Отправка снапшота прервана. "
+                        + snapshot.getHubId(), exception);
+            } catch (ExecutionException exception) {
+                throw new IllegalStateException("Не удалось отправить снапшот. "
+                        + snapshot.getHubId(), exception.getCause());
+            }
         }
     }
 
@@ -82,9 +95,6 @@ public class AggregationStarter {
         try {
             log.info("Завершение работы: flush producer...");
             producer.flush();
-
-            log.info("Commit offsets...");
-            consumer.commitSync();
         } catch (Exception e) {
             log.error("Ошибка при завершении работы", e);
         } finally {
