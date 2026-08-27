@@ -80,7 +80,7 @@ public class AggregationStarter {
                                 log.debug("Снапшот отправлен: topic={}, partition={}, offset={}",
                                         metadata.topic(), metadata.partition(), metadata.offset());
                             }
-                        });
+                        }).get();
             } catch (InterruptedException exception) {
                 throw new IllegalStateException("Отправка снапшота прервана. "
                         + snapshot.getHubId(), exception);
