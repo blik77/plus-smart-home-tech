@@ -46,15 +46,6 @@ public class SnapshotProcessor extends BaseKafkaProcessor<String, SensorsSnapsho
         }
     }
 
-    @Override
-    protected void onShutdown() {
-        try {
-            commitOffsets();
-        } catch (Exception e) {
-            log.warn("SnapshotProcessor: не удалось закоммитить оффсеты при завершении", e);
-        }
-    }
-
     private void processSnapshot(SensorsSnapshotAvro snapshot) {
         String hubId = snapshot.getHubId().toString();
         log.debug("SnapshotProcessor: снапшот хаба {}, датчиков: {}",

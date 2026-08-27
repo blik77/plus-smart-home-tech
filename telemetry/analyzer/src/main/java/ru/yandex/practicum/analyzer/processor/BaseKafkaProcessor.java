@@ -37,12 +37,8 @@ public abstract class BaseKafkaProcessor<K, V> implements Runnable {
         } catch (Exception e) {
             log.error("{}: ошибка обработки сообщений", processorName, e);
         } finally {
-            try {
-                onShutdown();
-            } finally {
-                consumer.close();
-                log.info("{}: consumer закрыт", processorName);
-            }
+            consumer.close();
+            log.info("{}: consumer закрыт", processorName);
         }
     }
 
