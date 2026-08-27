@@ -36,6 +36,7 @@ public class ActionExecutorImpl implements ActionExecutor {
                 action.type(), action.value());
         } catch (StatusRuntimeException e) {
             log.error("Ошибка gRPC-вызова к HubRouter: {}", e.getStatus().getCode(), e);
+            throw new StatusRuntimeException(e.getStatus());
         }
     }
 
