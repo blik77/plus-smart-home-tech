@@ -39,8 +39,7 @@ public class SnapshotServiceImpl implements SnapshotService {
                 return Optional.empty();
             }
 
-            if (oldState.getTimestamp().equals(event.getTimestamp())
-                && oldState.getData().equals(event.getPayload())) {
+            if (oldState.getData().equals(event.getPayload())) {
                 log.debug("Игнорируем дубликат события для датчика {}", sensorId);
                 return Optional.empty();
             }
