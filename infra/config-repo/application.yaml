@@ -1,0 +1,19 @@
+spring:
+  main:
+    banner-mode: off
+    log-startup-info: false
+  kafka:
+    bootstrap-servers: localhost:9092
+
+logging:
+  level:
+    ru:
+      yandex:
+        practicum:
+          telemetry: WARN
+          analyzer: DEBUG
+          aggregator: DEBUG
+    org:
+      springframework: ERROR
+      apache:
+        kafka: WARN
