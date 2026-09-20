@@ -16,8 +16,8 @@ public record CreateOrderRequest(
         @Email(message = "Некорректный формат email")
         String customerEmail,
 
-        @NotEmpty(message = "Заказ должен содержать хотя бы один товар")
         @Valid
+        @NotEmpty(message = "Заказ должен содержать хотя бы один товар")
         List<OrderItemRequest> items
 ) {
 }
