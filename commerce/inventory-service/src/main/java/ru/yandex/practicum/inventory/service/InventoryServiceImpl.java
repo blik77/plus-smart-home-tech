@@ -61,6 +61,12 @@ public class InventoryServiceImpl implements InventoryService {
         Inventory item = inventoryRepository.findByProductId(request.productId())
             .orElseThrow(() -> new NotFoundException("Складская запись не найдена для товара: " + request.productId()));
 
+        if (request.quantity() < item.getReservedQuantity()) {
+            throw new InsufficientStockException(String.format(
+                    "Недостаточно товара на складе: товар %d, зарезервировано %d, новое кол-во %d",
+                    item.getProductId(), item.getReservedQuantity(), request.quantity()));
+        }
+
         item.setQuantity(request.quantity());
         return inventoryMapper.toDto(inventoryRepository.save(item));
     }
