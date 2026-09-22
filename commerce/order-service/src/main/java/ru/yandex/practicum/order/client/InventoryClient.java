@@ -16,7 +16,7 @@ public class InventoryClient {
 
     private final RestTemplate restTemplate;
 
-    public void reserve(Long productId, Integer quantity) {
+    public void reserve(Long productId, Integer quantity) throws Exception {
         ReserveRequest request = new ReserveRequest(productId, quantity);
 
         try {
@@ -28,6 +28,7 @@ public class InventoryClient {
             throw new InsufficientStockException("Недостаточно товара на складе (ID: " + productId + ")");
         } catch (Exception e) {
             log.error("Ошибка связи со складом для товара {}", productId, e);
+            throw new Exception(String.format("Ошибка связи со складом для товара %d", productId));
         }
     }
 
