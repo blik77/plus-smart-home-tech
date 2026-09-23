@@ -77,14 +77,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidation(MethodArgumentTypeMismatchException e) {
+    public ErrorResponse handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         log.warn("Неверный тип параметра: {}", e.getMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage());
     }
 
-    @ExceptionHandler(HttpMessageNotReadableException .class)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidation(HttpMessageNotReadableException e) {
+    public ErrorResponse handleNotReadable(HttpMessageNotReadableException e) {
         log.warn("Невозможно прочитать тело запроса: {}", e.getMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), e.getMessage());
     }
