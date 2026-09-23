@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import ru.yandex.practicum.order.exception.InsufficientStockException;
+import ru.yandex.practicum.order.exception.NotFoundException;
 
 @Slf4j
 @Component
@@ -28,6 +29,7 @@ public class InventoryClient {
             throw new InsufficientStockException("Недостаточно товара на складе (ID: " + productId + ")");
         } catch (Exception e) {
             log.error("Ошибка связи со складом для товара {}", productId, e);
+            throw new NotFoundException("Ошибка связи со складом для товара " + productId);
         }
     }
 
