@@ -27,9 +27,9 @@ public class InventoryClient {
         } catch (HttpClientErrorException.Conflict e) {
             log.warn("Склад вернул 409 Conflict для товара {}: {}", productId, e.getResponseBodyAsString());
             throw new InsufficientStockException("Недостаточно товара на складе (ID: " + productId + ")");
-        } catch (Exception e) {
-            log.error("Ошибка связи со складом для товара {}", productId, e);
-            throw new NotFoundException("Ошибка связи со складом для товара: " + e);
+        } catch (HttpClientErrorException.NotFound e) {
+            log.error("Ошибка связи со складом для товара {}: {}", productId, e.getResponseBodyAsString());
+            throw new NotFoundException("Ошибка связи со складом для товара " + productId);
         }
     }
 
