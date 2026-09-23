@@ -29,7 +29,7 @@ public class InventoryClient {
             throw new InsufficientStockException("Недостаточно товара на складе (ID: " + productId + ")");
         } catch (Exception e) {
             log.error("Ошибка связи со складом для товара {}", productId, e);
-            throw new NotFoundException("Ошибка связи со складом для товара " + productId);
+            throw new NotFoundException("Ошибка связи со складом для товара: " + e);
         }
     }
 
