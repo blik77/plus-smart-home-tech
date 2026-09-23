@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import ru.yandex.practicum.order.exception.InsufficientStockException;
-import ru.yandex.practicum.order.exception.NotFoundException;
 
 @Slf4j
 @Component
@@ -27,9 +26,12 @@ public class InventoryClient {
         } catch (HttpClientErrorException.Conflict e) {
             log.warn("Склад вернул 409 Conflict для товара {}: {}", productId, e.getResponseBodyAsString());
             throw new InsufficientStockException("Недостаточно товара на складе (ID: " + productId + ")");
+        } catch (HttpClientErrorException.NotFound e) {
+            log.error("Склад вернул 404 NotFound для товара {}: {}", productId, e.getResponseBodyAsString());
+            //throw new NotFoundException("На складе не найден товар " + productId);
         } catch (Exception e) {
             log.error("Ошибка связи со складом для товара {}", productId, e);
-            throw new NotFoundException("Ошибка связи со складом для товара: " + productId + ": " + e);
+            //throw new Exception("Ошибка связи со складом для товара " + productId);
         }
     }
 
