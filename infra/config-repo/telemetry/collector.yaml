@@ -1,0 +1,17 @@
+grpc:
+  server:
+    port: 59091
+
+spring:
+  kafka:
+    consumer:
+      properties:
+        schema.registry.url: http://localhost:8081
+        specific.avro.reader: true
+
+collector:
+  kafka:
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: ru.yandex.practicum.serialization.GeneralAvroSerializer
+    sensor-topic: telemetry.sensors.v1
+    hub-topic: telemetry.hubs.v1
