@@ -1,22 +1,27 @@
 package ru.yandex.practicum.order.service;
 
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
-import ru.yandex.practicum.order.client.InventoryClient;
-import ru.yandex.practicum.order.client.ProductClient;
-import ru.yandex.practicum.order.client.ProductInfo;
+import ru.yandex.practicum.order.client.feign.InventoryClient;
+import ru.yandex.practicum.order.client.feign.ProductClient;
+import ru.yandex.practicum.order.client.feign.dto.ProductDto;
+import ru.yandex.practicum.order.client.feign.dto.ReleaseRequest;
+import ru.yandex.practicum.order.client.feign.dto.ReserveRequest;
 import ru.yandex.practicum.order.dto.CreateOrderRequest;
 import ru.yandex.practicum.order.dto.OrderDto;
+import ru.yandex.practicum.order.dto.OrderItemRequest;
 import ru.yandex.practicum.order.entity.Order;
 import ru.yandex.practicum.order.entity.OrderItem;
+import ru.yandex.practicum.order.entity.OrderStatus;
 import ru.yandex.practicum.order.exception.NotFoundException;
+import ru.yandex.practicum.order.exception.OrderProcessingException;
 import ru.yandex.practicum.order.mapper.OrderMapper;
 import ru.yandex.practicum.order.repository.OrderRepository;
 
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -27,42 +32,66 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final ProductClient productClient;
     private final InventoryClient inventoryClient;
-    private final TransactionTemplate transactionTemplate;
 
     @Override
     public OrderDto create(CreateOrderRequest request) {
 
-        Order order = orderMapper.toEntity(request);
-
-        for (OrderItem item : order.getItems()) {
-            inventoryClient.reserve(item.getProductId(), item.getQuantity());
+        Map<Long, ProductDto> products = new HashMap<>();
+        for (OrderItemRequest itemRequest : request.items()) {
+            products.computeIfAbsent(itemRequest.productId(), this::fetchProduct);
         }
 
-        for (OrderItem item : order.getItems()) {
-            if (item.getProductName() == null || item.getPrice() == null) {
-                log.info("Дозаполнение данных для товара {} из product-service", item.getProductId());
-                ProductInfo info = productClient.getProduct(item.getProductId());
-
-                if (info == null) {
-                    throw new NotFoundException("Товар не найден в каталоге: " + item.getProductId());
-                }
-
-                if (item.getProductName() == null) {
-                    item.setProductName(info.name());
-                }
-                if (item.getPrice() == null) {
-                    item.setPrice(info.price());
-                }
+        for (Map.Entry<Long, ProductDto> entry : products.entrySet()) {
+            if (!Boolean.TRUE.equals(entry.getValue().active())) {
+                throw new OrderProcessingException(
+                    "Товар снят с продажи и недоступен для заказа: " + entry.getKey());
             }
         }
 
-        order.setTotalPrice(orderMapper.calculateTotalPrice(order.getItems()));
+        LinkedHashMap<Long, Integer> totalQuantities = new LinkedHashMap<>();
+        for (OrderItemRequest itemRequest : request.items()) {
+            totalQuantities.merge(itemRequest.productId(), itemRequest.quantity(), Integer::sum);
+        }
 
-        return transactionTemplate.execute(status -> {
+        List<ReserveRequest> successfulReservations = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : totalQuantities.entrySet()) {
+            log.info("Начинаем резервирование: productId={}, quantity={}", entry.getKey(), entry.getValue());   // ← ДОБАВИТЬ ЭТУ СТ
+            ReserveRequest reserveRequest = new ReserveRequest(entry.getKey(), entry.getValue());
+            try {
+                inventoryClient.reserveStock(reserveRequest);
+                successfulReservations.add(reserveRequest);
+                log.info("Зарезервирован товар {} в количестве {}", entry.getKey(), entry.getValue());
+            } catch (FeignException e) {
+                compensate(successfulReservations);
+                throw convertReserveError(e, entry.getKey());
+            }
+        }
+
+        Order order;
+        try {
+            order = orderMapper.toEntity(request);
+            order.setStatus(OrderStatus.CONFIRMED);
+
+            for (OrderItem item : order.getItems()) {
+                ProductDto product = products.get(item.getProductId());
+                item.setProductName(product.name());
+                item.setPrice(product.price());
+            }
+            order.setTotalPrice(orderMapper.calculateTotalPrice(order.getItems()));
+        } catch (Exception e) {
+            compensate(successfulReservations);
+            throw new OrderProcessingException("Не удалось сформировать заказ: " + e.getMessage());
+        }
+
+        try {
             Order savedOrder = orderRepository.save(order);
-            log.info("Создан заказ id={}, totalPrice={}", savedOrder.getId(), savedOrder.getTotalPrice());
+            log.info("Создан заказ id={}, статус={}, totalPrice={}",
+                savedOrder.getId(), savedOrder.getStatus(), savedOrder.getTotalPrice());
             return orderMapper.toDto(savedOrder);
-        });
+        } catch (Exception e) {
+            compensate(successfulReservations);
+            throw new OrderProcessingException("Не удалось сохранить заказ: " + e.getMessage());
+        }
     }
 
     @Override
@@ -88,4 +117,42 @@ public class OrderServiceImpl implements OrderService {
             .map(orderMapper::toDto)
             .toList();
     }
+
+    private ProductDto fetchProduct(Long productId) {
+        try {
+            return productClient.getProductById(productId);
+        } catch (FeignException.NotFound e) {
+            throw new OrderProcessingException("Товар не найден в каталоге: " + productId);
+        } catch (FeignException e) {
+            throw new OrderProcessingException(
+                "Не удалось получить данные товара из каталога: " + productId);
+        }
+    }
+
+    private OrderProcessingException convertReserveError(FeignException e, Long productId) {
+        if (e instanceof FeignException.NotFound) {
+            return new OrderProcessingException(
+                "Складская запись не найдена для товара: " + productId);
+        }
+        if (e instanceof FeignException.Conflict) {
+            return new OrderProcessingException(
+                "Недостаточно товара на складе: " + productId);
+        }
+        return new OrderProcessingException("Не удалось зарезервировать товар: " + productId);
+    }
+
+    private void compensate(List<ReserveRequest> successfulReservations) {
+        for (ReserveRequest reservation : successfulReservations) {
+            try {
+                inventoryClient.releaseStock(
+                    new ReleaseRequest(reservation.productId(), reservation.quantity()));
+                log.info("Снят резерв: товар {}, количество {}",
+                    reservation.productId(), reservation.quantity());
+            } catch (Exception e) {
+                log.error("НЕ УДАЛОСЬ снять резерв для товара {}: {}",
+                    reservation.productId(), e.getMessage());
+            }
+        }
+    }
+
 }

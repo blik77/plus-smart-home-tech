@@ -7,6 +7,13 @@ spring:
         initial-interval: 1000
         multiplier: 1.1
         max-interval: 2000
+    openfeign:
+      client:
+        config:
+          default: # применяется по умолчанию для всех клиентов (можно указать имя @FeignClient вместо default)
+            connectTimeout: 3000 # 3 cek - Это время подключения
+            readTimeout: 3000 # 3 cek - Это время получения ответа
+            loggerLevel: basic
   main:
     banner-mode: off
     log-startup-info: false
@@ -18,7 +25,10 @@ logging:
     ru:
       yandex:
         practicum:
-          telemetry: WARN
+          inventory: DEBUG
+          order: DEBUG
+          product: DEBUG
+          telemetry: DEBUG
           analyzer: DEBUG
           aggregator: DEBUG
     org:
