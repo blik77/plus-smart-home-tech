@@ -22,6 +22,26 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(ProductServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleProductServiceUnavailable(ProductServiceUnavailableException ex) {
+        log.warn("Сервис каталога недоступен: {}", ex.getMessage());
+        return new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(InventoryServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleInventoryServiceUnavailable(InventoryServiceUnavailableException ex) {
+        log.warn("Сервис склада недоступен: {}", ex.getMessage());
+        return new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                ex.getMessage()
+        );
+    }
+
     @ExceptionHandler(OrderProcessingException.class)
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     public ErrorResponse handleOrderProcessing(OrderProcessingException e) {
