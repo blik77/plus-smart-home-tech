@@ -1,4 +1,8 @@
 spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
   datasource:
     url: jdbc:postgresql://localhost:5432/order_db
     username: dbuser
@@ -8,6 +12,20 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+
 
 server:
   port: 0
