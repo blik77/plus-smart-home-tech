@@ -1,12 +1,12 @@
 package ru.yandex.practicum.inventory.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.inventory.dto.InventoryDto;
-import ru.yandex.practicum.inventory.dto.ReserveRequest;
-import ru.yandex.practicum.inventory.dto.ReserveResponse;
-import ru.yandex.practicum.inventory.dto.UpdateInventoryRequest;
+import ru.yandex.practicum.inventory.dto.*;
 import ru.yandex.practicum.inventory.entity.Inventory;
 import ru.yandex.practicum.inventory.exception.InventoryConflictException;
 import ru.yandex.practicum.inventory.exception.InsufficientStockException;
@@ -16,12 +16,42 @@ import ru.yandex.practicum.inventory.repository.InventoryRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
     private final InventoryMapper inventoryMapper;
+
+    @Autowired
+    private HttpServletRequest requester;
+
+    @Override
+    @Transactional
+    public ReserveResponse release(ReleaseRequest request) {
+        Inventory item = inventoryRepository.findByProductId(request.productId())
+                .orElseThrow(() -> new NotFoundException(
+                        "Складская запись не найдена для товара: " + request.productId()));
+
+        if (item.getReservedQuantity() < request.quantity()) {
+            throw new IllegalArgumentException(String.format(
+                    "Невозможно снять резерв: товар %d, зарезервировано %d, запрошено к снятию %d",
+                    item.getProductId(),
+                    item.getReservedQuantity(),
+                    request.quantity()));
+        }
+
+        item.setReservedQuantity(item.getReservedQuantity() - request.quantity());
+        Inventory saved = inventoryRepository.save(item);
+
+        return new ReserveResponse(
+                true,
+                saved.getAvailableQuantity(),
+                String.format("Снят резерв %d шт. для товара %d",
+                        request.quantity(), request.productId())
+        );
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -74,6 +104,9 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     public ReserveResponse reserve(ReserveRequest request) {
+        log.info("Получены заголовки: X-Source-Service={}, X-Request-Id={}",
+                requester.getHeader("X-Source-Service"),
+                requester.getHeader("X-Request-Id"));
         Inventory item = inventoryRepository.findByProductId(request.productId())
             .orElseThrow(() -> new NotFoundException("Складская запись не найдена для товара: " + request.productId()));
 
