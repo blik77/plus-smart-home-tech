@@ -1,0 +1,130 @@
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - http://localhost:3000
+              - http://localhost:5173
+              - http://localhost:8443
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - '*'
+            exposed-headers:
+              - Location
+            allow-credentials: true
+            max-age: 3600
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: product-service-products-read
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+            - Method=GET
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses:
+                  - BAD_GATEWAY
+                  - SERVICE_UNAVAILABLE
+                  - GATEWAY_TIMEOUT
+                methods:
+                  - GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+
+        - id: product-service-products-write
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+            - Method=POST,PUT,DELETE,PATCH
+
+        - id: product-service-categories-read
+          uri: lb://product-service
+          predicates:
+            - Path=/api/categories/**
+            - Method=GET
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses:
+                  - BAD_GATEWAY
+                  - SERVICE_UNAVAILABLE
+                  - GATEWAY_TIMEOUT
+                methods:
+                  - GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+
+        - id: product-service-categories-write
+          uri: lb://product-service
+          predicates:
+            - Path=/api/categories/**
+            - Method=POST,PUT,DELETE,PATCH
+
+        - id: inventory-service-read
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
+            - Method=GET
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses:
+                  - BAD_GATEWAY
+                  - SERVICE_UNAVAILABLE
+                  - GATEWAY_TIMEOUT
+                methods:
+                  - GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+
+        - id: inventory-service-write
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
+            - Method=POST,PUT,DELETE,PATCH
+
+        - id: order-service-read
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+            - Method=GET
+          filters:
+            - name: Retry
+              args:
+                retries: 2
+                statuses:
+                  - BAD_GATEWAY
+                  - SERVICE_UNAVAILABLE
+                  - GATEWAY_TIMEOUT
+                methods:
+                  - GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+
+        - id: order-service-write
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+            - Method=POST,PUT,DELETE,PATCH
