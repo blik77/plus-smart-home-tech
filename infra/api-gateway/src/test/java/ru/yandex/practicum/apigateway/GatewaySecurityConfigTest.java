@@ -1,10 +1,11 @@
 package ru.yandex.practicum.apigateway;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -22,7 +23,7 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
         "spring.cloud.config.enabled=false",
         "spring.cloud.gateway.discovery.locator.enabled=false",
@@ -38,7 +39,18 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
         "spring.cloud.gateway.routes[0].predicates[0]=Path=/api/products/**",
         "spring.cloud.gateway.routes[1].id=test-orders",
         "spring.cloud.gateway.routes[1].uri=forward:/test-backend",
-        "spring.cloud.gateway.routes[1].predicates[0]=Path=/api/orders/**"
+        "spring.cloud.gateway.routes[1].predicates[0]=Path=/api/orders/**",
+        // CORS
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-origins[0]=http://localhost:8443",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[0]=GET",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[1]=POST",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[2]=PUT",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[3]=PATCH",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[4]=DELETE",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-methods[5]=OPTIONS",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-headers[0]=*",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].allow-credentials=true",
+        "spring.cloud.gateway.globalcors.cors-configurations.[/**].max-age=3600"
     }
 )
 @AutoConfigureWebTestClient
@@ -48,8 +60,18 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 })
 class GatewaySecurityConfigTest {
 
-    @Autowired
+    @LocalServerPort
+    private int port;
+
     private WebTestClient webTestClient;
+
+    @BeforeEach
+    void setUp() {
+        webTestClient = WebTestClient
+                .bindToServer()
+                .baseUrl("http://localhost:" + port)
+                .build();
+    }
 
     @Test
     void catalogGet_isPublic() {
@@ -116,8 +138,15 @@ class GatewaySecurityConfigTest {
     @Test
     void corsPreflight_isPublic() {
         webTestClient.options().uri("/api/orders")
+            .header(HttpHeaders.ORIGIN, "http://localhost:8443")
+            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
             .exchange()
-            .expectStatus().isOk();
+            .expectStatus().isOk()
+            .expectHeader()
+                .valueEquals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:8443")
+            .expectHeader()
+                .valueMatches(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, ".*?POST.*?");
     }
 
     private String basic(String username, String password) {
