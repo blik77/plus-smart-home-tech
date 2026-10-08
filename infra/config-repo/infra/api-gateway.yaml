@@ -128,3 +128,16 @@ spring:
           predicates:
             - Path=/api/orders/**
             - Method=POST,PUT,DELETE,PATCH
+
+app:
+  security:
+    users:
+      - username: ivan
+        password: "$2a$10$/1G0ZIfrP3hRS4Q7q8.Y1uTmpkduKQYr0aegy7LKpkSt.mPrY1FTe"
+        roles:
+          - USER
+      - username: anna
+        password: "$2a$10$YpiQJyLrNq955gHg7y10/.PMgnVL7THdtKunJkppbDpstDHban6Me"
+        roles:
+          - USER
+          - ADMIN
